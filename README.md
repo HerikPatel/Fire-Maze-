@@ -1,2 +1,2 @@
 # Fire-Maze-
-Fire Maze implementin DFS, BFS and A*
+Fire Maze implementing DFS, BFS and A*
