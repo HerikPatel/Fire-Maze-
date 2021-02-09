@@ -211,18 +211,18 @@ def bfs(maze, start, second):
     while fringe:
         current = fringe.popleft()  # pop leftmost = oldest one gets popped
         if current[0] == second[0] and current[1] == second[1]:
-            toReturn = []
-            toReturn.append([current[0], current[1]])
+            path = []
+            path.append([current[0], current[1]])
             curIndex = findIndex(current[0], current[1], len(maze))
             backtrackCurrent = parentTracker[curIndex]["previous"]
             while True:
-                toReturn.insert(0, backtrackCurrent)
+                path.insert(0, backtrackCurrent)
                 if backtrackCurrent == first:
                     break
                 backtrackCurrent = parentTracker[findIndex(backtrackCurrent[0], backtrackCurrent[1], len(maze))][
                     "previous"]
 
-            return toReturn
+            return path
 
         else:
             if current not in visited:  # check node, if not already visited then work thru its children if they're valid
