@@ -195,7 +195,7 @@ def A_star(dim, arraytp):
     return "path not found"
 
 def bfs(maze, start, second):
-    fringe = deque()  # queue for BFS
+    fringe = queue()  # queue for BFS
     first = [start[0], start[1]]
     fringe.append(first)
     visited = []
