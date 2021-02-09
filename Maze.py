@@ -1,3 +1,4 @@
+from collections import deque
 import random
 import queue
 import numpy
@@ -195,7 +196,7 @@ def A_star(dim, arraytp):
     return "path not found"
 
 def bfs(maze, start, second):
-    fringe = queue()  # queue for BFS
+    fringe = deque()  # queue for BFS
     first = [start[0], start[1]]
     fringe.append(first)
     visited = []
