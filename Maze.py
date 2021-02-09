@@ -1,11 +1,9 @@
-from collections import deque
 import random
 import queue
 import numpy
 import time
 import math
-dfs_row = queue.LifoQueue()  # This is to store row in the queue
-dfs_column = queue.LifoQueue()  # This is to store Column in the queue
+from collections import deque
 
 Matrix_dim = int(input("Enter Dimension of the Matrix: "))
 probablity = float(input("Enter Probablity: "))
@@ -14,19 +12,26 @@ probablity = float(input("Enter Probablity: "))
 def makemaaze():            # This function uses user input of dimension and probablity and returns a maze in form of matrix
 
     matrix = []
+    matrix2 = []
     for i in range(Matrix_dim):
         c = []
+        c2 = []
         for j in range(Matrix_dim):
             if i == 0 and j == 0:
-                c.append(1)
-            elif i == Matrix_dim-1 and j == Matrix_dim-1:
-                c.append(1)
-            elif(random.randint(0, 10) < probablity*10):
                 c.append(0)
-            else:
+                c2.append(1)
+            elif i == Matrix_dim-1 and j == Matrix_dim-1:
+                c.append(0)
+                c2.append(1)
+            elif(random.randint(0, 10) < probablity*10):
                 c.append(1)
+                c2.append(0)
+            else:
+                c.append(0)
+                c2.append(1)
         matrix.append(c)
-    return numpy.array(matrix)
+        matrix2.append(c2)
+    return numpy.array(matrix), numpy.array(matrix2)
 
 
 # Checks if the dimension of the next move are valid or invalid
@@ -37,28 +42,31 @@ def check_dimensions(row, col, dim):
     return False
 
 
-def dfs(dim, arraytp):
-    i = 0
-    j = 0
+def dfs(dim, arraytp, i, j):
+    dfs_row = queue.LifoQueue()  # This is to store row in the queue
+    dfs_column = queue.LifoQueue()  # This is to store Column in the queue
+    counter_step = 0
     wall_counter = 0
-    dfs_column.put(0)
-    dfs_row.put(0)
-    arraytp[0, 0] = 3
+    dfs_column.put(j)
+    dfs_row.put(i)
+    arraytp[i, j] = 3
     while not dfs_row.empty():  # The loop will run till there are elements in queue, empty queue suggest no possible solution of maze
+        counter_step = counter_step+1
         if wall_counter == 4:  # Value 4 means we have exhasuted all possible unexplored paths for particular cell and we remove this cell from the queue
             arraytp[dfs_row.get(), dfs_column.get()] = 0
             if(dfs_column.qsize() == 0):
                 continue
             temp_row = dfs_row.get()
             temp_col = dfs_column.get()
-            i = temp_row
-            j = temp_col
+            i, j = temp_row, temp_col
             dfs_row.put(i)
             dfs_column.put(j)
         wall_counter = 0
         temp_var2 = dfs_column.get()
         temp_var1 = dfs_row.get()
         if temp_var1 == dim-1 and temp_var2 == dim-1:
+            # print(counter_step)
+            print(dfs_row.qsize())
             return "Maze solved"
         else:
             dfs_row.put(temp_var1)
@@ -101,7 +109,7 @@ def dfs(dim, arraytp):
             continue
         else:
             wall_counter = wall_counter+1
-
+    # print(counter_step)
     return "path not found"
 
 
@@ -110,90 +118,99 @@ def Euclidean_distance(i, j, dim):
     return distance
 
 
-def Heuristic(i, j, dim, arraytp):
+def Heuristic(i, j, dim, arraytp, current_cost):
     row, col = -1, -1
+    prev_cost = current_cost.get()
+    current_cost.put(prev_cost)
     current_distance, distance = 0.0, 0.0
     if check_dimensions(i, j+1, dim) and arraytp[i, j+1] == 1:
         distance = Euclidean_distance(i, j+1, dim)
+        distance = distance+prev_cost+1
         if current_distance == 0.0:
             current_distance = distance
-            row = i
-            col = j+1
+            row, col = i, j+1
 
         elif current_distance > distance:
             current_distance = distance
-            row = i
-            col = j+1
+            row, col = i, j+1
+
     if check_dimensions(i+1, j, dim) and arraytp[i+1, j] == 1:
         distance = Euclidean_distance(i+1, j, dim)
+        distance = distance+prev_cost+1
         if current_distance == 0.0:
             current_distance = distance
-            row = i+1
-            col = j
+            row, col = i+1, j
 
         elif current_distance > distance:
             current_distance = distance
-            row = i+1
-            col = j
+            row, col = i+1, j
+
     if check_dimensions(i, j-1, dim) and arraytp[i, j-1] == 1:
         distance = Euclidean_distance(i, j-1, dim)
+        distance = distance+prev_cost+1
         if current_distance == 0.0:
             current_distance = distance
-            row = i
-            col = j-1
+            row, col = i, j-1
 
         elif current_distance > distance:
             current_distance = distance
-            row = i
-            col = j-1
+            row, col = i, j-1
+
     if check_dimensions(i-1, j, dim) and arraytp[i-1, j] == 1:
         distance = Euclidean_distance(i-1, j, dim)
+        distance = distance+prev_cost+1
         if current_distance == 0.0:
             current_distance = distance
-            row = i-1
-            col = j
+            row, col = i-1, j
 
         elif current_distance > distance:
             current_distance = distance
-            row = i-1
-            col = j
+            row, col = i-1, j
 
     return row, col
 
 
-def A_star(dim, arraytp):
-    A_row = queue.LifoQueue()
-    A_column = queue.LifoQueue()
-    i, j = 0, 0
-    A_column.put(0)
-    A_row.put(0)
-    arraytp[0, 0] = 3
+def A_star(dim, arraytp, i, j):  # arraytp is the mzae
+    nodes_visited = 0
+    current_cost = queue.LifoQueue()
+    current_cost.put(0)
+    A_row, A_column = queue.LifoQueue(), queue.LifoQueue()
+    A_column.put(j)
+    A_row.put(i)
+    arraytp[i, j] = 3
     while not A_row.empty():  # The loop will run till there are elements in queue, empty queue suggest no possible solution of maze
-        i, j = Heuristic(i, j, dim, arraytp)
+        i, j = Heuristic(i, j, dim, arraytp, current_cost)
         if i == -1:  # pop the element from the queue no viable path
             arraytp[A_row.get(), A_column.get()] = 0
             if(A_row.qsize() == 0):
                 continue
             temp_row = A_row.get()
             temp_col = A_column.get()
-            i = temp_row
-            j = temp_col
+            current_cost.get()
+            i, j = temp_row, temp_col
             A_row.put(i)
             A_column.put(j)
+            # current_cost.put(temp_cost)
         else:
+            temp_cost = current_cost.get()
+            current_cost.put(temp_cost)
+            current_cost.put(temp_cost+1)
             A_row.put(i)
             A_column.put(j)
             arraytp[i, j] = 3
+            nodes_visited = nodes_visited+1
 
         temp_var1 = A_row.get()
         temp_var2 = A_column.get()
         if temp_var1 == dim-1 and temp_var2 == dim-1:
+            print(nodes_visited)
             return "Maze solved"
         else:
             A_row.put(temp_var1)
             A_column.put(temp_var2)
 
     return "path not found"
+
 
 def bfs(maze, start, second):
     fringe = deque()  # queue for BFS
@@ -271,29 +288,33 @@ def bfs(maze, start, second):
 
     return ["No path"]
 
-    def findIndex(row, column, dim):
-        return row * dim + column
+
+def findIndex(row, column, dim):
+    return row * dim + column
 
 
-start, end = 0.0, 0.0
-while True:
+ctr2 = 0
+while False:
+    if ctr2 == 99:
+        break
+    ctr2 = ctr2+1
     mazedfs = makemaaze()
+    maze2 = mazedfs
     print("Maze made")
     start = time.time()
-    str = A_star(Matrix_dim, mazedfs)
-    print(str)
+    #str2 = dfs(Matrix_dim, mazedfs, 0, 0)
+    str = A_star(Matrix_dim, maze2, 0, 0)
+    print("A*-"+str)
+    # print("dfs-"+str2)
+   # str = dfs(Matrix_dim, mazedfs, 0, 0)
     end = time.time()
+    # print(end-start)
+
+while True:
+    mazedbfs, mazedfs = makemaaze()
+    start = time.time()
+    str3 = bfs(mazedbfs, [0, 0], [Matrix_dim-1, Matrix_dim-1])
+    end = time.time()
+    print(len(str3))
     print(end-start)
-
-
-'''
-
-maze_dfs = makemaaze()
-print("Maze made")
-start = time.time()
-tp = dfs(Matrix_dim, maze_dfs)
-end = time.time()
-
-print(end-start)
-print(tp)
-'''
+    print("end")
