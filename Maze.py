@@ -194,6 +194,85 @@ def A_star(dim, arraytp):
 
     return "path not found"
 
+def bfs(maze, start, second):
+    fringe = deque()  # queue for BFS
+    first = [start[0], start[1]]
+    fringe.append(first)
+    visited = []
+    parentTracker = []
+    for i in range(len(maze)):
+        for j in range(len(maze)):
+            toAdd = {}
+            toAdd["previous"] = []
+            parentTracker.append(toAdd)
+
+    parentTracker[0]["previous"] = start
+    # process thru fringe
+    while fringe:
+        current = fringe.popleft()  # pop leftmost = oldest one gets popped
+        if current[0] == second[0] and current[1] == second[1]:
+            toReturn = []
+            toReturn.append([current[0], current[1]])
+            curIndex = findIndex(current[0], current[1], len(maze))
+            backtrackCurrent = parentTracker[curIndex]["previous"]
+            while True:
+                toReturn.insert(0, backtrackCurrent)
+                if backtrackCurrent == first:
+                    break
+                backtrackCurrent = parentTracker[findIndex(backtrackCurrent[0], backtrackCurrent[1], len(maze))][
+                    "previous"]
+
+            return toReturn
+
+        else:
+            if current not in visited:  # check node, if not already visited then work thru its children if they're valid
+                currentFirst = current[0]
+                currentSecond = current[1]
+                if currentFirst - 1 >= 0 and currentFirst - 1 < len(
+                        maze) and currentSecond >= 0 and currentSecond < len(maze):  # up
+                    if maze[currentFirst - 1][currentSecond] == 0:
+                        temp = []
+                        temp.append(currentFirst - 1)
+                        temp.append(currentSecond)
+                        fringe.append(temp)
+                        parentTracker[findIndex(currentFirst - 1, currentSecond, len(maze))]["previous"] = [
+                            currentFirst, currentSecond]
+                if currentFirst >= 0 and currentFirst < len(
+                        maze) and currentSecond - 1 >= 0 and currentSecond - 1 < len(maze):  # left
+                    if maze[currentFirst][currentSecond - 1] == 0:
+                        temp = []
+                        temp.append(currentFirst)
+                        temp.append(currentSecond - 1)
+                        fringe.append(temp)
+                        parentTracker[findIndex(currentFirst, currentSecond - 1, len(maze))]["previous"] = [
+                            currentFirst, currentSecond]
+                if currentFirst + 1 >= 0 and currentFirst + 1 < len(
+                        maze) and currentSecond >= 0 and currentSecond < len(maze):  # down
+                    if maze[currentFirst + 1][currentSecond] == 0:
+                        temp = []
+                        temp.append(currentFirst + 1)
+                        temp.append(currentSecond)
+                        fringe.append(temp)
+                        parentTracker[findIndex(currentFirst + 1, currentSecond, len(maze))]["previous"] = [
+                            currentFirst, currentSecond]
+                if currentFirst >= 0 and currentFirst < len(
+                        maze) and currentSecond + 1 >= 0 and currentSecond + 1 < len(maze):  # right
+                    if maze[currentFirst][currentSecond + 1] == 0:
+                        temp = []
+                        temp.append(currentFirst)
+                        temp.append(currentSecond + 1)
+                        fringe.append(temp)
+                        parentTracker[findIndex(currentFirst, currentSecond + 1, len(maze))]["previous"] = [
+                            currentFirst, currentSecond]
+                # after done, add node to visited
+                visited.append([currentFirst, currentSecond])
+                maze[currentFirst][currentSecond] = 3
+
+    return ["No path"]
+
+    def findIndex(row, column, dim):
+        return row * dim + column
+
 
 start, end = 0.0, 0.0
 while True:
