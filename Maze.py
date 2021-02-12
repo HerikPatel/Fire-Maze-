@@ -414,10 +414,11 @@ print(nopathctr)
 print(firenodes)
 print(firenodes/(100-nopathctr))
 '''
+# Testing for strategy
 firenodes_1, firenodes_2 = 0, 0
 ctr = 0
 nopathctr = 0
-while ctr != 99:
+while ctr != 199:
     ctr = ctr+1
     mazefire = makemaaze()
     mazefire2 = numpy.copy(mazefire)
@@ -425,6 +426,8 @@ while ctr != 99:
     path = a_star(mazefire, 0, 0, Matrix_dim)
     if len(path) < 1:
         nopathctr = nopathctr+1
+        ctr = ctr-1
+        continue
     strt1 = fire_strategy1(Matrix_dim, mazefire2, flammability_rate, path)
     strt2 = fire_strategy2(Matrix_dim, mazefire3, flammability_rate)
     if strt1 == 1:
@@ -434,11 +437,11 @@ while ctr != 99:
 print("Strategy-1")
 print(nopathctr)
 print(firenodes_1)
-print(firenodes_1/(100-nopathctr))
+print(firenodes_1/(200))
 print("Strategy-2")
 print(nopathctr)
 print(firenodes_2)
-print(firenodes_2/(100-nopathctr))
+print(firenodes_2/(200))
 
 '''
 while True:
