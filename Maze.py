@@ -7,6 +7,7 @@ from collections import deque
 
 Matrix_dim = int(input("Enter Dimension of the Matrix: "))
 probablity = float(input("Enter Probablity: "))
+flammability_rate = float(input("Enter flammability rate: "))
 
 
 def makemaaze():            # This function uses user input of dimension and probablity and returns a maze in form of matrix
@@ -65,8 +66,8 @@ def dfs(dim, arraytp, i, j):
         temp_var2 = dfs_column.get()
         temp_var1 = dfs_row.get()
         if temp_var1 == dim-1 and temp_var2 == dim-1:
-            # print(counter_step)
-            print(dfs_row.qsize())
+            print(counter_step)
+            # print(dfs_row.qsize())
             return "Maze solved"
         else:
             dfs_row.put(temp_var1)
@@ -293,16 +294,90 @@ def findIndex(row, column, dim):
     return row * dim + column
 
 
+def check_burning_neighbour(row, col, maze, dim):  # 5 represent fire
+    burning_block = 0
+    if check_dimensions(row, col+1, dim) and maze[row][col+1] == 5:
+        burning_block = burning_block+1
+    if check_dimensions(row+1, col, dim) and maze[row+1][col] == 5:
+        burning_block = burning_block+1
+    if check_dimensions(row, col-1, dim) and maze[row][col-1] == 5:
+        burning_block = burning_block+1
+    if check_dimensions(row-1, col, dim) and maze[row-1][col] == 5:
+        burning_block = burning_block+1
+    return burning_block
+
+
+def spread_fire(dim, fire_list, flammability_rate, maze):
+    tempfire_list = []
+    for x in fire_list:
+        row = x[0]
+        col = x[1]
+        # checking to see if open path which is 0 here
+        if check_dimensions(row, col+1, dim) and maze[row][col+1] == 0:
+            k = check_burning_neighbour(row, col+1, maze, dim)
+            tp = pow((1-flammability_rate), k)
+            tp = 1-tp
+            if(random.randint(0, 10) <= tp*10):
+                maze[row][col+1] = 5
+                tempfire_list.append([row, col+1])
+        if check_dimensions(row+1, col, dim) and maze[row+1][col] == 0:
+            k = check_burning_neighbour(row+1, col, maze, dim)
+            tp = pow((1-flammability_rate), k)
+            tp = 1-tp
+            if(random.randint(0, 10) <= tp*10):
+                maze[row+1][col] = 5
+                tempfire_list.append([row+1, col])
+        if check_dimensions(row, col-1, dim) and maze[row][col-1] == 0:
+            k = check_burning_neighbour(row, col-1, maze, dim)
+            tp = pow((1-flammability_rate), k)
+            tp = 1-tp
+            if(random.randint(0, 10) <= tp*10):
+                maze[row][col-1] = 5
+                tempfire_list.append([row, col-1])
+        if check_dimensions(row-1, col, dim) and maze[row-1][col] == 0:
+            k = check_burning_neighbour(row-1, col, maze, dim)
+            tp = pow((1-flammability_rate), k)
+            tp = 1-tp
+            if(random.randint(0, 10) <= tp*10):
+                maze[row-1][col] = 5
+                tempfire_list.append([row-1, col])
+
+    return tempfire_list
+
+
+# open path here=0 5 is fire
+def fire_strategy1(dim, maze, flammability_rate, path):
+    fire_list = []
+    fire_row = random.randint(1, dim-1)
+    fire_col = random.randint(1, dim-1)
+    while maze[fire_row][fire_col] != 0:
+        fire_row = random.randint(1, dim-1)
+        fire_col = random.randint(1, dim-1)
+    maze[fire_row][fire_col] = 5
+    fire_list.append([fire_row, fire_col])
+    for x in path:
+        new_burningcell_list = spread_fire(
+            dim, fire_list, flammability_rate, maze)
+        fire_list = new_burningcell_list+fire_list
+        try:
+            fire_list.index(x)
+            return 0
+        except:
+            pass
+
+    return 1
+
+
+'''
 ctr2 = 0
-while False:
+while True:
     if ctr2 == 99:
         break
     ctr2 = ctr2+1
-    mazedfs = makemaaze()
-    maze2 = mazedfs
+    mazedfs, maze2 = makemaaze()
     print("Maze made")
     start = time.time()
-    #str2 = dfs(Matrix_dim, mazedfs, 0, 0)
+    str2 = dfs(Matrix_dim, mazedfs, 0, 0)
     str = A_star(Matrix_dim, maze2, 0, 0)
     print("A*-"+str)
     # print("dfs-"+str2)
@@ -311,10 +386,29 @@ while False:
     # print(end-start)
 
 while True:
-    mazedbfs, mazedfs = makemaaze()
+    mazebfs = makemaaze()
+    print("maze made")
     start = time.time()
-    str3 = bfs(mazedbfs, [0, 0], [Matrix_dim-1, Matrix_dim-1])
+    str3 = bfs(mazebfs, [0, 0], [Matrix_dim-1, Matrix_dim-1])
     end = time.time()
     print(len(str3))
     print(end-start)
     print("end")
+'''
+firenodes = 0
+ctr = 0
+nopathctr = 0
+while ctr != 100:
+    ctr = ctr+1
+    mazefire, maze2 = makemaaze()
+    mazefire2 = numpy.copy(mazefire)
+    path = bfs(mazefire, [0, 0], [Matrix_dim-1, Matrix_dim-1])
+    if(len(path) == 1):
+        nopathctr = nopathctr+1
+        continue
+    tp = fire_strategy1(Matrix_dim, mazefire2, flammability_rate, path)
+    if tp != 0:
+        firenodes = firenodes+1
+
+
+print(firenodes/(100-nopathctr))
