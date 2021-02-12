@@ -79,8 +79,8 @@ def dfs(dim, arraytp, i, j):
         temp_var2 = dfs_column.get()
         temp_var1 = dfs_row.get()
         if temp_var1 == dim-1 and temp_var2 == dim-1:
-            print(counter_step)
-            # print(dfs_row.qsize())
+            # print(counter_step)
+            print(dfs_row.qsize())
             return "Maze solved"
         else:
             dfs_row.put(temp_var1)
@@ -141,8 +141,10 @@ def a_star(maze, row, col, dim):
     open_list = []
     close_list = []
     path = []
-    h = math.sqrt((dim-1)**2+(dim-1)**2)
-    node = block([0, 0], 0, h)
+    start_row = row
+    start_col = col
+    h = math.sqrt((dim-1-row)**2+(dim-1-col)**2)
+    node = block([row, col], 0, h)
     open_list.append(node)
     heapq.heapify(open_list)
     while len(open_list) > 0:
@@ -156,12 +158,13 @@ def a_star(maze, row, col, dim):
             row = current_node.position[0]
             col = current_node.position[1]
             path.append([row, col])
-            while (row != 0 or col != 0):
+            while (row != start_row or col != start_col):
                 current_node = current_node.parent
                 row = current_node.position[0]
                 col = current_node.position[1]
                 path.append([row, col])
 
+            path.reverse()
             return path
         if check_dimensions(row+1, col, dim) and maze[row+1, col] == 1:
             h = math.sqrt(
@@ -337,6 +340,8 @@ def spread_fire(dim, fire_list, flammability_rate, maze):
 
 # open path here=0 5 is fire
 def fire_strategy1(dim, maze, flammability_rate, path):
+    if len(path) <= 0:
+        return 0
     fire_list = []
     fire_row = random.randint(1, dim-1)
     fire_col = random.randint(1, dim-1)
@@ -358,6 +363,39 @@ def fire_strategy1(dim, maze, flammability_rate, path):
     return 1
 
 
+def fire_strategy2(dim, maze, flammability_rate):
+    fire_list = []
+    fire_row = random.randint(1, dim-1)
+    fire_col = random.randint(1, dim-1)
+    maze2 = numpy.copy(maze)
+    start = []
+    path = a_star(maze2, 0, 0, dim)
+    while maze[fire_row][fire_col] != 1:
+        fire_row = random.randint(1, dim-1)
+        fire_col = random.randint(1, dim-1)
+    maze[fire_row][fire_col] = 5
+    fire_list.append([fire_row, fire_col])
+    while True:
+        if len(path) <= 0:
+            return 0
+        if len(path) == 1:
+            return 1
+        start = path[1]
+        new_burningcell_list = spread_fire(
+            dim, fire_list, flammability_rate, maze)
+        fire_list = new_burningcell_list+fire_list
+        maze2 = numpy.copy(maze)
+        path = a_star(maze2, start[0], start[1], dim)
+
+        try:
+            fire_list.index(start)
+            return 0
+        except:
+            continue
+
+    return 1
+
+
 '''
 firenodes = 0
 ctr = 0
@@ -365,19 +403,44 @@ nopathctr = 0
 while ctr != 99:
     ctr = ctr+1
     mazefire = makemaaze()
-    mazefire2 = numpy.copy(mazefire)
-    path = a_star(mazefire, 0, 0, Matrix_dim)
-    path.reverse()
-    if(len(path) <= 1):
-        nopathctr = nopathctr+1
-        continue
-    tp = fire_strategy1(Matrix_dim, mazefire2, flammability_rate, path)
+    tp = fire_strategy2(Matrix_dim, mazefire, flammability_rate)
     if tp != 0:
         firenodes = firenodes+1
+    else:
+        nopathctr = nopathctr+1
+
+    print("Anotherone")
 print(nopathctr)
 print(firenodes)
 print(firenodes/(100-nopathctr))
+'''
+firenodes_1, firenodes_2 = 0, 0
+ctr = 0
+nopathctr = 0
+while ctr != 99:
+    ctr = ctr+1
+    mazefire = makemaaze()
+    mazefire2 = numpy.copy(mazefire)
+    mazefire3 = numpy.copy(mazefire)
+    path = a_star(mazefire, 0, 0, Matrix_dim)
+    if len(path) < 1:
+        nopathctr = nopathctr+1
+    strt1 = fire_strategy1(Matrix_dim, mazefire2, flammability_rate, path)
+    strt2 = fire_strategy2(Matrix_dim, mazefire3, flammability_rate)
+    if strt1 == 1:
+        firenodes_1 = firenodes_1+1
+    if strt2 == 1:
+        firenodes_2 = firenodes_2+1
+print("Strategy-1")
+print(nopathctr)
+print(firenodes_1)
+print(firenodes_1/(100-nopathctr))
+print("Strategy-2")
+print(nopathctr)
+print(firenodes_2)
+print(firenodes_2/(100-nopathctr))
 
+'''
 while True:
     maze = makemaaze()
     maze2 = numpy.copy(maze)
@@ -405,10 +468,3 @@ print(path)
 tp = fire_strategy1(Matrix_dim, mazefire, flammability_rate, path)
 print(tp)
 '''
-while True:
-    maze = makemaaze()
-    start = time.time()
-    if(len(a_star(maze, 0, 0, Matrix_dim)) > 1):
-        end = time.time()
-        print(end-start)
-    print("another one")
