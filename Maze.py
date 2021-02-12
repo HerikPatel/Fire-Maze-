@@ -1,3 +1,4 @@
+import heapq
 import random
 import queue
 import numpy
@@ -10,29 +11,41 @@ probablity = float(input("Enter Probablity: "))
 flammability_rate = float(input("Enter flammability rate: "))
 
 
+class block:
+    def __init__(self, position, g, h):
+        self.parent = None
+        self.position = position
+        self.g = g
+        self.h = h
+        self.f = self.g+self.h
+
+    def __lt__(self, other):
+        return self.f < other.f
+
+
 def makemaaze():            # This function uses user input of dimension and probablity and returns a maze in form of matrix
 
     matrix = []
-    matrix2 = []
+    #matrix2 = []
     for i in range(Matrix_dim):
         c = []
-        c2 = []
+        #c2 = []
         for j in range(Matrix_dim):
             if i == 0 and j == 0:
-                c.append(0)
-                c2.append(1)
-            elif i == Matrix_dim-1 and j == Matrix_dim-1:
-                c.append(0)
-                c2.append(1)
-            elif(random.randint(0, 10) < probablity*10):
                 c.append(1)
-                c2.append(0)
-            else:
+                # c2.append(1)
+            elif i == Matrix_dim-1 and j == Matrix_dim-1:
+                c.append(1)
+                # c2.append(1)
+            elif(random.randint(0, 10) < probablity*10):
                 c.append(0)
-                c2.append(1)
+                # c2.append(0)
+            else:
+                c.append(1)
+                # c2.append(1)
         matrix.append(c)
-        matrix2.append(c2)
-    return numpy.array(matrix), numpy.array(matrix2)
+        # matrix2.append(c2)
+    return numpy.array(matrix)  # , numpy.array(matrix2)
 
 
 # Checks if the dimension of the next move are valid or invalid
@@ -114,103 +127,80 @@ def dfs(dim, arraytp, i, j):
     return "path not found"
 
 
-def Euclidean_distance(i, j, dim):
-    distance = math.sqrt((dim-1 - i)**2+(dim-1-j)**2)
-    return distance
+def check_dup_openlist(current_node, node, open_list):
+    for x in open_list:
+        if x.position == node.position:
+            if x.f > node.f:
+                x = node
+
+            return open_list, False
+    return open_list, True
 
 
-def Heuristic(i, j, dim, arraytp, current_cost):
-    row, col = -1, -1
-    prev_cost = current_cost.get()
-    current_cost.put(prev_cost)
-    current_distance, distance = 0.0, 0.0
-    if check_dimensions(i, j+1, dim) and arraytp[i, j+1] == 1:
-        distance = Euclidean_distance(i, j+1, dim)
-        distance = distance+prev_cost+1
-        if current_distance == 0.0:
-            current_distance = distance
-            row, col = i, j+1
+def a_star(maze, row, col, dim):
+    open_list = []
+    close_list = []
+    path = []
+    h = math.sqrt((dim-1)**2+(dim-1)**2)
+    node = block([0, 0], 0, h)
+    open_list.append(node)
+    heapq.heapify(open_list)
+    while len(open_list) > 0:
+        heapq.heapify(open_list)
+        current_node = heapq.heappop(open_list)
+        row = current_node.position[0]
+        col = current_node.position[1]
+        maze[row][col] = 3
+        #print(row, col)
+        if row == dim-1 and col == dim-1:
+            row = current_node.position[0]
+            col = current_node.position[1]
+            path.append([row, col])
+            while (row != 0 and col != 0):
+                current_node = current_node.parent
+                row = current_node.position[0]
+                col = current_node.position[1]
+                path.append([row, col])
 
-        elif current_distance > distance:
-            current_distance = distance
-            row, col = i, j+1
+            return path
+        if check_dimensions(row+1, col, dim) and maze[row+1, col] == 1:
+            h = math.sqrt(
+                (dim-1 - row+1)**2+(dim-1-col)**2)
+            node = block([row+1, col], current_node.g+1, h)
+            node.parent = current_node
+            open_list, bol = check_dup_openlist(current_node, node, open_list)
+            if bol:
+                open_list.append(node)
 
-    if check_dimensions(i+1, j, dim) and arraytp[i+1, j] == 1:
-        distance = Euclidean_distance(i+1, j, dim)
-        distance = distance+prev_cost+1
-        if current_distance == 0.0:
-            current_distance = distance
-            row, col = i+1, j
+        if check_dimensions(row, col+1, dim) and maze[row, col+1] == 1:
+            h = math.sqrt(
+                (dim-1 - row)**2+(dim-1-col+1)**2)
+            node = block([row, col+1], current_node.g+1, h)
+            node.parent = current_node
+            open_list, bol = check_dup_openlist(current_node, node, open_list)
+            if bol:
+                open_list.append(node)
 
-        elif current_distance > distance:
-            current_distance = distance
-            row, col = i+1, j
+        if check_dimensions(row, col-1, dim) and maze[row, col-1] == 1:
+            h = math.sqrt(
+                (dim-1 - row)**2+(dim-1-col-1)**2)
+            node = block([row, col-1], current_node.g+1, h)
+            node.parent = current_node
+            open_list, bol = check_dup_openlist(current_node, node, open_list)
+            if bol:
+                open_list.append(node)
 
-    if check_dimensions(i, j-1, dim) and arraytp[i, j-1] == 1:
-        distance = Euclidean_distance(i, j-1, dim)
-        distance = distance+prev_cost+1
-        if current_distance == 0.0:
-            current_distance = distance
-            row, col = i, j-1
+        if check_dimensions(row-1, col, dim) and maze[row-1, col] == 1:
+            h = math.sqrt(
+                (dim-1 - row-1)**2+(dim-1-col)**2)
+            node = block([row-1, col], current_node.g+1, h)
+            node.parent = current_node
+            open_list, bol = check_dup_openlist(current_node, node, open_list)
+            if bol:
+                open_list.append(node)
 
-        elif current_distance > distance:
-            current_distance = distance
-            row, col = i, j-1
-
-    if check_dimensions(i-1, j, dim) and arraytp[i-1, j] == 1:
-        distance = Euclidean_distance(i-1, j, dim)
-        distance = distance+prev_cost+1
-        if current_distance == 0.0:
-            current_distance = distance
-            row, col = i-1, j
-
-        elif current_distance > distance:
-            current_distance = distance
-            row, col = i-1, j
-
-    return row, col
-
-
-def A_star(dim, arraytp, i, j):  # arraytp is the mzae
-    nodes_visited = 0
-    current_cost = queue.LifoQueue()
-    current_cost.put(0)
-    A_row, A_column = queue.LifoQueue(), queue.LifoQueue()
-    A_column.put(j)
-    A_row.put(i)
-    arraytp[i, j] = 3
-    while not A_row.empty():  # The loop will run till there are elements in queue, empty queue suggest no possible solution of maze
-        i, j = Heuristic(i, j, dim, arraytp, current_cost)
-        if i == -1:  # pop the element from the queue no viable path
-            arraytp[A_row.get(), A_column.get()] = 0
-            if(A_row.qsize() == 0):
-                continue
-            temp_row = A_row.get()
-            temp_col = A_column.get()
-            current_cost.get()
-            i, j = temp_row, temp_col
-            A_row.put(i)
-            A_column.put(j)
-            # current_cost.put(temp_cost)
-        else:
-            temp_cost = current_cost.get()
-            current_cost.put(temp_cost)
-            current_cost.put(temp_cost+1)
-            A_row.put(i)
-            A_column.put(j)
-            arraytp[i, j] = 3
-            nodes_visited = nodes_visited+1
-
-        temp_var1 = A_row.get()
-        temp_var2 = A_column.get()
-        if temp_var1 == dim-1 and temp_var2 == dim-1:
-            print(nodes_visited)
-            return "Maze solved"
-        else:
-            A_row.put(temp_var1)
-            A_column.put(temp_var2)
-
-    return "path not found"
+        close_list.append(current_node)
+    return path
 
 
 def bfs(maze, start, second):
@@ -368,47 +358,12 @@ def fire_strategy1(dim, maze, flammability_rate, path):
     return 1
 
 
-'''
-ctr2 = 0
 while True:
-    if ctr2 == 99:
-        break
-    ctr2 = ctr2+1
-    mazedfs, maze2 = makemaaze()
-    print("Maze made")
+    maze = makemaaze()
+    maze2 = numpy.copy(maze)
+    print("Dfs")
+    str = dfs(Matrix_dim, maze2, 0, 0)
+    print("A Star")
     start = time.time()
-    str2 = dfs(Matrix_dim, mazedfs, 0, 0)
-    str = A_star(Matrix_dim, maze2, 0, 0)
-    print("A*-"+str)
-    # print("dfs-"+str2)
-   # str = dfs(Matrix_dim, mazedfs, 0, 0)
+    print(len(a_star(maze, 0, 0, Matrix_dim))+1)
     end = time.time()
-    # print(end-start)
-
-while True:
-    mazebfs = makemaaze()
-    print("maze made")
-    start = time.time()
-    str3 = bfs(mazebfs, [0, 0], [Matrix_dim-1, Matrix_dim-1])
-    end = time.time()
-    print(len(str3))
-    print(end-start)
-    print("end")
-'''
-firenodes = 0
-ctr = 0
-nopathctr = 0
-while ctr != 100:
-    ctr = ctr+1
-    mazefire, maze2 = makemaaze()
-    mazefire2 = numpy.copy(mazefire)
-    path = bfs(mazefire, [0, 0], [Matrix_dim-1, Matrix_dim-1])
-    if(len(path) == 1):
-        nopathctr = nopathctr+1
-        continue
-    tp = fire_strategy1(Matrix_dim, mazefire2, flammability_rate, path)
-    if tp != 0:
-        firenodes = firenodes+1
-
-
-print(firenodes/(100-nopathctr))
