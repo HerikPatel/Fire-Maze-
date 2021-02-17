@@ -4,6 +4,7 @@ import queue
 import numpy
 import time
 import math
+import turtle
 from collections import deque
 
 Matrix_dim = int(input("Enter Dimension of the Matrix: "))
@@ -17,7 +18,8 @@ class block:
         self.position = position
         self.g = g
         self.h = h
-        self.f = self.g+self.h
+        self.fire_distance = 0
+        self.f = self.g+self.h - self.fire_distance
 
     def __lt__(self, other):
         return self.f < other.f
@@ -56,7 +58,7 @@ def check_dimensions(row, col, dim):
     return False
 
 
-def dfs(dim, arraytp, i, j):
+def dfs(dim, arraytp, i, j, goal_row, goal_col):
     dfs_row = queue.LifoQueue()  # This is to store row in the queue
     dfs_column = queue.LifoQueue()  # This is to store Column in the queue
     counter_step = 0
@@ -78,9 +80,9 @@ def dfs(dim, arraytp, i, j):
         wall_counter = 0
         temp_var2 = dfs_column.get()
         temp_var1 = dfs_row.get()
-        if temp_var1 == dim-1 and temp_var2 == dim-1:
+        if temp_var1 == goal_row and temp_var2 == goal_col:
             # print(counter_step)
-            print(dfs_row.qsize())
+            # print(dfs_row.qsize())
             return "Maze solved"
         else:
             dfs_row.put(temp_var1)
@@ -137,13 +139,43 @@ def check_dup_openlist(current_node, node, open_list):
     return open_list, True
 
 
-def a_star(maze, row, col, dim):
+def heuristic_1(dim, row, col):
+    h = math.sqrt((dim-row)**2+(dim-col)**2)
+    return h
+
+# use the latest fire cell added to get ditacne from the fire cell
+
+
+def heuristic_2(row, col, new_burningcell_list):
+    # add fire distance and return value of h which is minimum
+    # One problem is that we determine which is lowest f in priority queue so we need to change that and see which element will pop
+    # or we can add a dist_fire in block class which would basically be used to determine as a tie breaker between
+    # we can pop last three elements to see if the algorithm performs better or not
+    # best idea is to make copy of ASTAR AND work on it rather than changing prev a star
+    # for idea of where exactly fire is you can take newly added list and take out an average
+    row_sum, col_sum, counter = 0, 0, 0
+    for i in new_burningcell_list:
+        row_sum = row_sum+i[0]
+        col_sum = col_sum+i[1]
+        counter = counter+1
+    if counter != 0:
+        row_sum = row_sum/counter
+        col_sum = col_sum/counter
+
+    f = math.sqrt((row_sum-row)**2+(col_sum-col)**2)
+    return f
+
+
+# use arguments to determine which heuristic to use
+
+
+def a_star(maze, row, col, dim, new_burningcell_list, fire_check):
     open_list = []
     close_list = []
     path = []
     start_row = row
     start_col = col
-    h = math.sqrt((dim-1-row)**2+(dim-1-col)**2)
+    h = heuristic_1(dim-1, row, col)
     node = block([row, col], 0, h)
     open_list.append(node)
     heapq.heapify(open_list)
@@ -167,37 +199,45 @@ def a_star(maze, row, col, dim):
             path.reverse()
             return path
         if check_dimensions(row+1, col, dim) and maze[row+1, col] == 1:
-            h = math.sqrt(
-                (dim-1 - row+1)**2+(dim-1-col)**2)
+            h = heuristic_1(dim-1, row+1, col)
             node = block([row+1, col], current_node.g+1, h)
             node.parent = current_node
+            if fire_check:
+                node.fire_distance = heuristic_2(
+                    row+1, col, new_burningcell_list)
             open_list, bol = check_dup_openlist(current_node, node, open_list)
             if bol:
                 open_list.append(node)
 
         if check_dimensions(row, col+1, dim) and maze[row, col+1] == 1:
-            h = math.sqrt(
-                (dim-1 - row)**2+(dim-1-col+1)**2)
+            h = heuristic_1(dim-1, row, col+1)
             node = block([row, col+1], current_node.g+1, h)
             node.parent = current_node
+            if fire_check:
+                node.fire_distance = heuristic_2(
+                    row, col+1, new_burningcell_list)
             open_list, bol = check_dup_openlist(current_node, node, open_list)
             if bol:
                 open_list.append(node)
 
         if check_dimensions(row, col-1, dim) and maze[row, col-1] == 1:
-            h = math.sqrt(
-                (dim-1 - row)**2+(dim-1-col-1)**2)
+            h = heuristic_1(dim-1, row, col-1)
             node = block([row, col-1], current_node.g+1, h)
             node.parent = current_node
+            if fire_check:
+                node.fire_distance = heuristic_2(
+                    row, col-1, new_burningcell_list)
             open_list, bol = check_dup_openlist(current_node, node, open_list)
             if bol:
                 open_list.append(node)
 
         if check_dimensions(row-1, col, dim) and maze[row-1, col] == 1:
-            h = math.sqrt(
-                (dim-1 - row-1)**2+(dim-1-col)**2)
+            h = heuristic_1(dim-1, row-1, col)
             node = block([row-1, col], current_node.g+1, h)
             node.parent = current_node
+            if fire_check:
+                node.fire_distance = heuristic_2(
+                    row-1, col, new_burningcell_list)
             open_list, bol = check_dup_openlist(current_node, node, open_list)
             if bol:
                 open_list.append(node)
@@ -305,7 +345,7 @@ def spread_fire(dim, fire_list, flammability_rate, maze):
     for x in fire_list:
         row = x[0]
         col = x[1]
-        # checking to see if open path which is 0 here
+        # checking to see if open path which is 1 here
         if check_dimensions(row, col+1, dim) and maze[row][col+1] == 1:
             k = check_burning_neighbour(row, col+1, maze, dim)
             tp = pow((1-flammability_rate), k)
@@ -338,6 +378,13 @@ def spread_fire(dim, fire_list, flammability_rate, maze):
     return tempfire_list
 
 
+def check_if_reachable(maze, start, end, dim):
+    if dfs(dim, maze, start[0], start[1], end[0], end[1]) == "Maze solved":
+        return False
+    else:
+        return True
+
+
 # open path here=0 5 is fire
 def fire_strategy1(dim, maze, flammability_rate, path):
     if len(path) <= 0:
@@ -345,9 +392,13 @@ def fire_strategy1(dim, maze, flammability_rate, path):
     fire_list = []
     fire_row = random.randint(1, dim-1)
     fire_col = random.randint(1, dim-1)
-    while maze[fire_row][fire_col] != 1:
-        fire_row = random.randint(1, dim-1)
-        fire_col = random.randint(1, dim-1)
+    while True:
+        maze2 = numpy.copy(maze)
+        if (maze[fire_row][fire_col] != 1 or check_if_reachable(maze2, [0, 0], [fire_row, fire_col], dim)):
+            fire_row = random.randint(1, dim-1)
+            fire_col = random.randint(1, dim-1)
+        else:
+            break
     maze[fire_row][fire_col] = 5
     fire_list.append([fire_row, fire_col])
     for x in path:
@@ -360,7 +411,20 @@ def fire_strategy1(dim, maze, flammability_rate, path):
         except:
             continue
 
+    # print(maze)
+    # print(maze2)
+    # print(path)
+    # print("list")
+    # print(fire_list)
+    # print("New")
     return 1
+
+# new update 3.0 the fire starte is not changing while we are caluclating the current path because we will be using startegy 2
+# techquine to do it so that fire is kind of paused while we are caluclating the path so heuristic class can be edited to accomodate
+# try block at which fire start outside both of the method
+# strategy 3 - when meausring heuristic if diffrece is small and or there is no diffrence we choose the block which
+# is more far from the fire take origin of fire as distance metric in heuristic or another approach is to
+# compare with latest or closest node of fire
 
 
 def fire_strategy2(dim, maze, flammability_rate):
@@ -369,10 +433,14 @@ def fire_strategy2(dim, maze, flammability_rate):
     fire_col = random.randint(1, dim-1)
     maze2 = numpy.copy(maze)
     start = []
-    path = a_star(maze2, 0, 0, dim)
-    while maze[fire_row][fire_col] != 1:
-        fire_row = random.randint(1, dim-1)
-        fire_col = random.randint(1, dim-1)
+    path = a_star(maze2, 0, 0, dim, [], False)
+    while True:
+        maze3 = numpy.copy(maze)
+        if (maze[fire_row][fire_col] != 1 or check_if_reachable(maze3, [0, 0], [fire_row, fire_col], dim)):
+            fire_row = random.randint(1, dim-1)
+            fire_col = random.randint(1, dim-1)
+        else:
+            break
     maze[fire_row][fire_col] = 5
     fire_list.append([fire_row, fire_col])
     while True:
@@ -385,7 +453,7 @@ def fire_strategy2(dim, maze, flammability_rate):
             dim, fire_list, flammability_rate, maze)
         fire_list = new_burningcell_list+fire_list
         maze2 = numpy.copy(maze)
-        path = a_star(maze2, start[0], start[1], dim)
+        path = a_star(maze2, start[0], start[1], dim, [], False)
 
         try:
             fire_list.index(start)
@@ -396,78 +464,76 @@ def fire_strategy2(dim, maze, flammability_rate):
     return 1
 
 
-'''
-firenodes = 0
-ctr = 0
-nopathctr = 0
-while ctr != 99:
-    ctr = ctr+1
-    mazefire = makemaaze()
-    tp = fire_strategy2(Matrix_dim, mazefire, flammability_rate)
-    if tp != 0:
-        firenodes = firenodes+1
-    else:
-        nopathctr = nopathctr+1
+def fire_strategy3(dim, maze, flammability_rate):
+    fire_list = []
+    fire_row = random.randint(1, dim-1)
+    fire_col = random.randint(1, dim-1)
+    maze2 = numpy.copy(maze)
+    start = []
+    path = a_star(maze2, 0, 0, dim, [], True)
+    while True:
+        maze3 = numpy.copy(maze)
+        if (maze[fire_row][fire_col] != 1 or check_if_reachable(maze3, [0, 0], [fire_row, fire_col], dim)):
+            fire_row = random.randint(1, dim-1)
+            fire_col = random.randint(1, dim-1)
+        else:
+            break
+    maze[fire_row][fire_col] = 5
+    fire_list.append([fire_row, fire_col])
+    while True:
+        if len(path) <= 0:
+            return 0
+        if len(path) == 1:
+            return 1
+        start = path[1]
+        new_burningcell_list = spread_fire(
+            dim, fire_list, flammability_rate, maze)
+        fire_list = new_burningcell_list+fire_list
+        maze2 = numpy.copy(maze)
+        path = a_star(maze2, start[0], start[1],
+                      dim, new_burningcell_list, True)
 
-    print("Anotherone")
-print(nopathctr)
-print(firenodes)
-print(firenodes/(100-nopathctr))
-'''
-# Testing for strategy
-firenodes_1, firenodes_2 = 0, 0
-ctr = 0
-nopathctr = 0
-while ctr != 199:
+        try:
+            fire_list.index(start)
+            return 0
+        except:
+            continue
+
+    return 1
+
+
+ctr, ctr1, ctr2, ctr3 = 0, 0, 0, 0
+while ctr != 999:
     ctr = ctr+1
     mazefire = makemaaze()
     mazefire2 = numpy.copy(mazefire)
     mazefire3 = numpy.copy(mazefire)
-    path = a_star(mazefire, 0, 0, Matrix_dim)
+    mazefire4 = numpy.copy(mazefire)
+
+    path = a_star(mazefire, 0, 0, Matrix_dim, [], False)
     if len(path) < 1:
-        nopathctr = nopathctr+1
         ctr = ctr-1
         continue
-    strt1 = fire_strategy1(Matrix_dim, mazefire2, flammability_rate, path)
-    strt2 = fire_strategy2(Matrix_dim, mazefire3, flammability_rate)
+
+    strt1 = fire_strategy1(Matrix_dim, mazefire2,
+                           flammability_rate, path)
+    strt2 = fire_strategy2(Matrix_dim, mazefire3,
+                           flammability_rate)
+    strt3 = fire_strategy3(Matrix_dim, mazefire4,
+                           flammability_rate)
+
     if strt1 == 1:
-        firenodes_1 = firenodes_1+1
+        ctr1 = ctr1+1
     if strt2 == 1:
-        firenodes_2 = firenodes_2+1
-print("Strategy-1")
-print(nopathctr)
-print(firenodes_1)
-print(firenodes_1/(200))
-print("Strategy-2")
-print(nopathctr)
-print(firenodes_2)
-print(firenodes_2/(200))
+        ctr2 = ctr2+1
+    if strt3 == 1:
+        ctr3 = ctr3+1
 
-'''
-while True:
-    maze = makemaaze()
-    maze2 = numpy.copy(maze)
-    print("Dfs")
-    str = dfs(Matrix_dim, maze2, 0, 0)
-    print("A Star")
-    start = time.time()
-    print(len(a_star(maze, 0, 0, Matrix_dim))+1)
-    end = time.time()
 
-arr = [[1, 1, 1, 1, 1, 0, 1, 0, 0, 0],
-       [0, 0, 1, 1, 0, 1, 1, 0, 1, 0],
-       [1, 1, 1, 0, 0, 1, 1, 1, 1, 1],
-       [0, 1, 1, 1, 1, 0, 1, 0, 0, 0],
-       [0, 0, 1, 1, 1, 1, 1, 0, 0, 1],
-       [0, 0, 1, 1, 1, 0, 0, 1, 1, 1],
-       [0, 1, 1, 0, 0, 0, 1, 0, 0, 1],
-       [0, 1, 1, 0, 0, 1, 0, 1, 0, 1],
-       [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-       [0, 1, 1, 1, 0, 1, 1, 1, 1, 1]]
-maze = numpy.array(arr)
-mazefire = numpy.copy(maze)
-path = a_star(maze, 0, 0, Matrix_dim)
-print(path)
-tp = fire_strategy1(Matrix_dim, mazefire, flammability_rate, path)
-print(tp)
-'''
+print("strategy 1")
+print(ctr1/1000)
+print("strategy 2")
+print(ctr2/1000)
+print("strategy 3")
+print(ctr3/1000)
+# turtle.mainloop()
